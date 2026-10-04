@@ -9,15 +9,17 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@mistralai/mistralai": "^2.7.0",
     "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.12",
     "mammoth": "^1.13.0",
     "next": "16.3.8",
     "nodemailer": "^10.0.14",
+    "openai": "^6.49.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "server-only": "^0.0.1",
+    "unpdf": "^1.7.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
