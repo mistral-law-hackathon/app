@@ -1,6 +1,7 @@
 import "server-only";
 import OpenAI from "openai";
 import mammoth from "mammoth";
+import { extractText as extractPdfText, getDocumentProxy } from "unpdf";
 
 // The provider is OpenAI; the key is intentionally read from MISTRAL_API_KEY.
 const client = new OpenAI({ apiKey: process.env.MISTRAL_API_KEY ?? "", maxRetries: 4 });
@@ -30,6 +31,13 @@ export async function extractText(file: File): Promise<string> {
     return (await mammoth.extractRawText({ buffer: buf })).value;
   }
   const mime = file.type || (name.endsWith(".pdf") ? "application/pdf" : "application/octet-stream");
+  if (mime === "application/pdf") {
+    try {
+      const { text } = await extractPdfText(await getDocumentProxy(new Uint8Array(buf)), { mergePages: true });
+      // Text-based PDFs are read locally; scanned ones fall through to the model.
+      if (text.replace(/\s/g, "").length > 200) return text;
+    } catch {}
+  }
   const dataUrl = `data:${mime};base64,${buf.toString("base64")}`;
   const res = await client.chat.completions.create({
     model: MODEL,

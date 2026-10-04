@@ -67,25 +67,30 @@ export async function uploadDocuments(_: FormState, form: FormData): Promise<For
   const company = await requireCompany();
   const files = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
   if (!files.length) return { error: "Choose at least one file" };
-  for (const file of files) {
-    if (file.size > MAX_BYTES) return { error: `${file.name} is larger than 15 MB` };
-    let text: string;
-    try {
-      text = await extractText(file);
-    } catch (e) {
-      return { error: `Could not read ${file.name}: ${(e as Error).message}` };
+  const errors: string[] = [];
+  let added = 0;
+  const queue = [...files];
+  const worker = async () => {
+    for (let file = queue.shift(); file; file = queue.shift()) {
+      try {
+        if (file.size > MAX_BYTES) throw new Error("larger than 15 MB");
+        const text = await extractText(file);
+        if (!text.trim()) throw new Error("no text found");
+        const summary = await summarizeDocument(text).catch(() => "");
+        await db.document.create({
+          data: { companyId: company.id, name: file.name, mimeType: file.type, text, summary, kind: "existing" },
+        });
+        added++;
+      } catch (e) {
+        errors.push(`${file.name}: ${(e as Error).message}`);
+      }
     }
-    if (!text.trim()) return { error: `No text found in ${file.name}` };
-    let summary = "";
-    try {
-      summary = await summarizeDocument(text);
-    } catch {}
-    await db.document.create({
-      data: { companyId: company.id, name: file.name, mimeType: file.type, text, summary, kind: "existing" },
-    });
-  }
+  };
+  await Promise.all(Array.from({ length: Math.min(4, files.length) }, worker));
   revalidatePath("/documents");
-  return { ok: `${files.length} document${files.length > 1 ? "s" : ""} added` };
+  const ok = `${added} document${added === 1 ? "" : "s"} added`;
+  if (errors.length) return { error: `${ok}. Failed: ${errors.join("; ")}` };
+  return { ok };
 }
 
 export async function deleteDocument(form: FormData) {
