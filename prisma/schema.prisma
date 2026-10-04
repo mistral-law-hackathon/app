@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  industry     String     @default("")
+  jurisdiction String     @default("")
+  description  String     @default("")
+  goals        String     @default("")
+  activities   String     @default("")
+  revenue      String     @default("")
+  structure    String     @default("")
+  risks        String     @default("")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  documents    Document[]
+  reviews      Review[]
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  mimeType  String
+  text      String
+  // "existing" = stored company contract, "incoming" = contract under review
+  kind      String   @default("existing")
+  summary   String   @default("")
+  createdAt DateTime @default(now())
+  reviews   Review[]
+}
+
+model Review {
+  id           String    @id @default(cuid())
+  companyId    String
+  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  documentId   String
+  document     Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  // "processing" | "ready" | "failed" | "sent"
+  status       String    @default("processing")
+  summary      String    @default("")
+  error        String    @default("")
+  sentTo       String    @default("")
+  sentAt       DateTime?
+  createdAt    DateTime  @default(now())
+  comments     Comment[]
+}
+
+model Comment {
+  id            String        @id @default(cuid())
+  reviewId      String
+  review        Review        @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  position      Int
+  quote         String
+  startOffset   Int
+  endOffset     Int
+  // "high" | "medium" | "low"
+  severity      String
+  // "direct_conflict" | "indirect_risk" | "future_risk" | "goal_misalignment"
+  category      String
+  title         String
+  explanation   String
+  suggestion    String        @default("")
+  relatedSource String        @default("")
+  // "pending" | "accepted" | "rejected"
+  status        String        @default("pending")
+  messages      ChatMessage[]
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  commentId String
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  role      String
+  content   String
+  createdAt DateTime @default(now())
+}
