@@ -23,7 +23,7 @@ export function UploadForm({ mode }: { mode: "repository" | "review" }) {
         />
       </label>
       <div className="flex items-center gap-4">
-        <SubmitButton pendingText={mode === "review" ? "Analysing with Mistral… (up to a minute)" : "Reading documents…"}>
+        <SubmitButton pendingText={mode === "review" ? "Analysing with AI… (up to a minute)" : "Reading documents…"}>
           {mode === "review" ? "Start review" : "Add to repository"}
         </SubmitButton>
         <FormMessage state={state} />

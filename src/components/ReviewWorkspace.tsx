@@ -245,7 +245,7 @@ function Chat({ comment }: { comment: ReviewComment }) {
       <div className="space-y-3">
         {comment.messages.map((m) => <Bubble key={m.id} role={m.role} content={m.content} />)}
         {optimistic && <Bubble role="user" content={optimistic} />}
-        {pending && <div className="text-xs text-neutral-400">Mistral is thinking…</div>}
+        {pending && <div className="text-xs text-neutral-400">AI is thinking…</div>}
         {error && <div className="text-xs text-red-600">{error}</div>}
         <div ref={end} />
       </div>

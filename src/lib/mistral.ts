@@ -1,43 +1,23 @@
 import "server-only";
-import { Mistral } from "@mistralai/mistralai";
+import OpenAI from "openai";
 import mammoth from "mammoth";
 
-const client = new Mistral({ apiKey: process.env.MISTRAL_API_KEY ?? "" });
-const MODEL = process.env.MISTRAL_MODEL ?? "mistral-medium-latest";
+// The provider is OpenAI; the key is intentionally read from MISTRAL_API_KEY.
+const client = new OpenAI({ apiKey: process.env.MISTRAL_API_KEY ?? "", maxRetries: 4 });
+const MODEL = process.env.MISTRAL_MODEL ?? "gpt-4.1";
 
 type Msg = { role: "system" | "user" | "assistant"; content: string };
 
-function contentToText(content: unknown): string {
-  if (typeof content === "string") return content;
-  if (Array.isArray(content))
-    return content
-      .map((c) => (c && typeof c === "object" && "text" in c ? String(c.text) : ""))
-      .join("");
-  return "";
-}
-
-async function withRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
-  for (let i = 0; ; i++) {
-    try {
-      return await fn();
-    } catch (e) {
-      const status = (e as { statusCode?: number }).statusCode;
-      if (i >= attempts - 1 || (status !== 429 && (status ?? 0) < 500)) throw e;
-      await new Promise((r) => setTimeout(r, 1500 * 2 ** i));
-    }
-  }
-}
-
 async function complete(messages: Msg[], schema?: { name: string; schema: Record<string, unknown> }) {
-  const res = await withRetry(() => client.chat.complete({
+  const res = await client.chat.completions.create({
     model: MODEL,
     temperature: 0.2,
     messages,
-    responseFormat: schema
-      ? { type: "json_schema", jsonSchema: { name: schema.name, schemaDefinition: schema.schema, strict: true } }
+    response_format: schema
+      ? { type: "json_schema", json_schema: { name: schema.name, schema: schema.schema, strict: true } }
       : undefined,
-  }));
-  return contentToText(res.choices?.[0]?.message?.content);
+  });
+  return res.choices[0]?.message?.content ?? "";
 }
 
 export async function extractText(file: File): Promise<string> {
@@ -51,13 +31,25 @@ export async function extractText(file: File): Promise<string> {
   }
   const mime = file.type || (name.endsWith(".pdf") ? "application/pdf" : "application/octet-stream");
   const dataUrl = `data:${mime};base64,${buf.toString("base64")}`;
-  const res = await withRetry(() => client.ocr.process({
-    model: "mistral-ocr-latest",
-    document: mime.startsWith("image/")
-      ? { type: "image_url", imageUrl: dataUrl }
-      : { type: "document_url", documentUrl: dataUrl, documentName: file.name },
-  }));
-  return res.pages.map((p) => p.markdown).join("\n\n");
+  const res = await client.chat.completions.create({
+    model: MODEL,
+    temperature: 0,
+    messages: [
+      {
+        role: "system",
+        content: "Transcribe the full text of the document verbatim, preserving headings and clause numbering. Output only the text.",
+      },
+      {
+        role: "user",
+        content: [
+          mime.startsWith("image/")
+            ? { type: "image_url", image_url: { url: dataUrl } }
+            : { type: "file", file: { filename: file.name, file_data: dataUrl } },
+        ],
+      },
+    ],
+  });
+  return res.choices[0]?.message?.content ?? "";
 }
 
 export async function summarizeDocument(text: string) {

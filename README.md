@@ -1,9 +1,9 @@
 # Clause — contract intelligence
 
-Companies sign up, describe themselves (goals, activities, revenues, structure, red lines) and upload existing contracts. A new contract is reviewed by Mistral against that context; each finding is anchored to the exact clause and can be accepted, rejected or discussed with the AI. Once every finding is resolved, the review is emailed from the app.
+Companies sign up, describe themselves (goals, activities, revenues, structure, red lines) and upload existing contracts. A new contract is reviewed by an LLM (OpenAI) against that context; each finding is anchored to the exact clause and can be accepted, rejected or discussed with the AI. Once every finding is resolved, the review is emailed from the app.
 
 ## Stack
-Next.js 16 (App Router, Server Actions) · TypeScript · Tailwind 4 · Prisma + SQLite · Mistral API (`mistral-ocr-latest` for PDFs/scans, `mistral-medium-latest` for review and chat) · Nodemailer.
+Next.js 16 (App Router, Server Actions) · TypeScript · Tailwind 4 · Prisma + SQLite · OpenAI API (`gpt-4.1` for PDF/scan extraction, review and chat; key read from `MISTRAL_API_KEY`, model from `MISTRAL_MODEL`) · Nodemailer.
 
 ## Setup
 ```bash
